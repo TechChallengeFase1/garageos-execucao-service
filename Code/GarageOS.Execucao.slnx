@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="GarageOS.Execucao.Api/GarageOS.Execucao.Api.csproj" />
+  <Project Path="GarageOS.Execucao.Application/GarageOS.Execucao.Application.csproj" />
+  <Project Path="GarageOS.Execucao.Domain/GarageOS.Execucao.Domain.csproj" />
+  <Project Path="GarageOS.Execucao.Infrastructure/GarageOS.Execucao.Infrastructure.csproj" />
+  <Project Path="GarageOS.Execucao.IntegrationTests/GarageOS.Execucao.IntegrationTests.csproj" />
+  <Project Path="GarageOS.Execucao.UnitTests/GarageOS.Execucao.UnitTests.csproj" />
+</Solution>
