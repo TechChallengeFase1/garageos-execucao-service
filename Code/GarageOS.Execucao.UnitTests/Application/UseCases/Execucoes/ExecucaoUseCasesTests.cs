@@ -1,4 +1,5 @@
 using FluentAssertions;
+using GarageOS.Contracts.V1;
 using GarageOS.Execucao.Application.Abstractions;
 using GarageOS.Execucao.Application.DTOs.Execucoes;
 using GarageOS.Execucao.Application.UseCases.Execucoes;
@@ -15,6 +16,12 @@ public class ExecucaoUseCasesTests
 {
     private readonly Mock<IOrdemDeExecucaoRepository> _repository = new();
     private readonly Mock<IMetricasDeNegocio> _metricas = new();
+    private readonly Mock<IReservaPecasRepository> _reservas = new();
+    private readonly Mock<IEstoqueRepository> _estoques = new();
+    private readonly Mock<IPublicadorDeEventos> _publicador = new();
+
+    private AlterarStatusExecucaoUseCase AlterarStatus() =>
+        new(_repository.Object, _reservas.Object, _estoques.Object, _publicador.Object, _metricas.Object);
 
     private static OrdemDeExecucao NovaOrdem(Guid? osId = null) =>
         new(osId ?? Guid.NewGuid(), "OS-2026-00042", Guid.NewGuid(), [(Guid.NewGuid(), "Revisão")]);
@@ -87,7 +94,7 @@ public class ExecucaoUseCasesTests
         var ordem = NovaOrdem();
         _repository.Setup(r => r.ObterPorIdAsync(ordem.Id)).ReturnsAsync(ordem);
 
-        var resposta = await new AlterarStatusExecucaoUseCase(_repository.Object, _metricas.Object)
+        var resposta = await AlterarStatus()
             .ExecutarAsync(ordem.Id, new AlterarStatusExecucaoRequest { Status = StatusExecucao.EmDiagnostico });
 
         resposta.Status.Should().Be("EmDiagnostico");
@@ -101,7 +108,7 @@ public class ExecucaoUseCasesTests
         var ordem = NovaOrdem();
         _repository.Setup(r => r.ObterPorIdAsync(ordem.Id)).ReturnsAsync(ordem);
 
-        var acao = () => new AlterarStatusExecucaoUseCase(_repository.Object, _metricas.Object)
+        var acao = () => AlterarStatus()
             .ExecutarAsync(ordem.Id, new AlterarStatusExecucaoRequest { Status = StatusExecucao.Concluida });
 
         await acao.Should().ThrowAsync<TransicaoDeStatusInvalidaException>();
@@ -111,10 +118,63 @@ public class ExecucaoUseCasesTests
     [Fact]
     public async Task AlterarStatus_Inexistente_DeveLancar()
     {
-        var acao = () => new AlterarStatusExecucaoUseCase(_repository.Object, _metricas.Object)
+        var acao = () => AlterarStatus()
             .ExecutarAsync(Guid.NewGuid(), new AlterarStatusExecucaoRequest { Status = StatusExecucao.EmDiagnostico });
 
         await acao.Should().ThrowAsync<OrdemDeExecucaoNaoEncontradaException>();
+    }
+
+    private OrdemDeExecucao EmReparoComServicoFinalizado()
+    {
+        var ordem = NovaOrdem();
+        ordem.AlterarStatus(StatusExecucao.EmDiagnostico);
+        ordem.AlterarStatus(StatusExecucao.EmReparo);
+        var item = ordem.Itens.Single();
+        ordem.AlterarStatusItem(item.Id, StatusItemExecucao.Iniciado);
+        ordem.AlterarStatusItem(item.Id, StatusItemExecucao.Finalizado);
+        _repository.Setup(r => r.ObterPorIdAsync(ordem.Id)).ReturnsAsync(ordem);
+        return ordem;
+    }
+
+    [Fact]
+    public async Task Concluir_DeveConsumirReservaEPublicarExecucaoFinalizada()
+    {
+        var ordem = EmReparoComServicoFinalizado();
+        var peca = new GarageOS.Execucao.Domain.Entities.Estoque("Filtro", 10, 40m, DateTime.UtcNow, "Bosch");
+        peca.Reservar(2);
+        var reserva = new ReservaPecas(ordem.OrdemDeServicoId, [(peca.Id, 2)]);
+        _reservas.Setup(r => r.ObterPorOrdemDeServicoIdAsync(ordem.OrdemDeServicoId)).ReturnsAsync(reserva);
+        _estoques.Setup(r => r.ObterPorIdsAsync(It.IsAny<IEnumerable<Guid>>())).ReturnsAsync([peca]);
+
+        await AlterarStatus().ExecutarAsync(ordem.Id, new AlterarStatusExecucaoRequest { Status = StatusExecucao.Concluida });
+
+        reserva.Status.Should().Be(StatusReserva.Consumida);
+        peca.Quantidade.Should().Be(8);
+        _publicador.Verify(p => p.PublicarAsync(It.Is<ExecucaoFinalizada>(e => e.OrdemDeServicoId == ordem.OrdemDeServicoId), It.IsAny<CancellationToken>()), Times.Once);
+        _repository.Verify(r => r.AtualizarAsync(ordem), Times.Once);
+    }
+
+    [Fact]
+    public async Task Concluir_SemReserva_DevePublicarMesmoAssim()
+    {
+        var ordem = EmReparoComServicoFinalizado();
+
+        await AlterarStatus().ExecutarAsync(ordem.Id, new AlterarStatusExecucaoRequest { Status = StatusExecucao.Concluida });
+
+        _publicador.Verify(p => p.PublicarAsync(It.IsAny<ExecucaoFinalizada>(), It.IsAny<CancellationToken>()), Times.Once);
+        _estoques.Verify(r => r.ObterPorIdsAsync(It.IsAny<IEnumerable<Guid>>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Falhar_DevePublicarExecucaoFalhouComOMotivo()
+    {
+        var ordem = NovaOrdem();
+        _repository.Setup(r => r.ObterPorIdAsync(ordem.Id)).ReturnsAsync(ordem);
+
+        await AlterarStatus().ExecutarAsync(ordem.Id, new AlterarStatusExecucaoRequest { Status = StatusExecucao.Falhou, Motivo = "Motor travado" });
+
+        _publicador.Verify(p => p.PublicarAsync(It.Is<ExecucaoFalhou>(e => e.Motivo == "Motor travado"), It.IsAny<CancellationToken>()), Times.Once);
+        _reservas.Verify(r => r.ObterPorOrdemDeServicoIdAsync(It.IsAny<Guid>()), Times.Never);
     }
 
     [Fact]

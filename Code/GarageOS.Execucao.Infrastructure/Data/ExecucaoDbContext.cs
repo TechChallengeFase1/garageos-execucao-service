@@ -1,5 +1,6 @@
 using System.Reflection;
 using GarageOS.Execucao.Domain.Entities;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 
 namespace GarageOS.Execucao.Infrastructure.Data;
@@ -24,6 +25,12 @@ public class ExecucaoDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+
+        // Outbox e inbox do MassTransit no mesmo banco: a mudança e a mensagem
+        // a publicar vão no mesmo commit.
+        modelBuilder.AddInboxStateEntity();
+        modelBuilder.AddOutboxMessageEntity();
+        modelBuilder.AddOutboxStateEntity();
         base.OnModelCreating(modelBuilder);
     }
 }
