@@ -21,6 +21,7 @@ public class OrdemDeExecucaoRepository : IOrdemDeExecucaoRepository
         return await _context.OrdensDeExecucao
             .Include(o => o.Itens)
             .Include(o => o.Historico)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(o => o.Id == id);
     }
 
@@ -29,6 +30,7 @@ public class OrdemDeExecucaoRepository : IOrdemDeExecucaoRepository
         return await _context.OrdensDeExecucao
             .Include(o => o.Itens)
             .Include(o => o.Historico)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(o => o.OrdemDeServicoId == ordemDeServicoId);
     }
 
