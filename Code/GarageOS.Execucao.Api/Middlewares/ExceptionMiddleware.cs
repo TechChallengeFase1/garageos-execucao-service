@@ -75,6 +75,6 @@ public class ExceptionMiddleware
 
         var json = JsonSerializer.Serialize(resposta, JsonOptions);
 
-        , context.RequestAborted);
+        await context.Response.WriteAsync(json, context.RequestAborted);
     }
 }
