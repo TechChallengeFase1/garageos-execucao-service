@@ -79,7 +79,7 @@ Depois de recriar o cluster, reaplique: a trust da role IRSA aponta para o OIDC 
 
 ## Deploy (`k8s/`)
 
-O workflow [`cd.yml`](.github/workflows/cd.yml) roda depois que a CI da `main` termina verde: gera a imagem no ECR, cria o Secret a partir do Secrets Manager, roda as migrations num Job, aplica os manifestos e confere a saúde pelo NLB. Com a infra destruída, ele avisa e pula o deploy.
+A CI chama o workflow [`cd.yml`](.github/workflows/cd.yml) depois que build, testes e Sonar passam na `main`: gera a imagem no ECR, cria o Secret a partir do Secrets Manager, roda as migrations num Job, aplica os manifestos e confere a saúde pelo API Gateway. Com a infra destruída, ele avisa e pula o deploy.
 
 O serviço responde em `{url do API Gateway}/execucao/...`: o Traefik escolhe o serviço pelo prefixo e o tira antes de chegar à API. O Service se chama `execucao`, nome que o OS usa para chamar o estoque dentro do cluster.
 
