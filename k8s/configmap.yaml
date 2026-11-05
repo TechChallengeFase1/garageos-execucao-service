@@ -1,0 +1,14 @@
+# Configuracao nao sensivel. Segredos ficam no Secret garageos-execucao-secret, criado no deploy.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: garageos-execucao-config
+  namespace: garageos-execucao
+data:
+  ASPNETCORE_ENVIRONMENT: Production
+  AWS_REGION: us-east-1
+  Mensageria__Transporte: AmazonSqs
+  Mensageria__Ambiente: producao
+  # Ligado para o teste de aceite, acessado por port-forward.
+  Swagger__Enabled: "true"
+  NEW_RELIC_APP_NAME: garageos-execucao
