@@ -32,7 +32,7 @@ public class TopicosDaMensageriaTests
     {
         var topologia = Topologia("garageos-producao");
 
-        topologia.GetMessageTopology<GerarOrcamento>().EntityName.Should().Be("garageos-producao-gerar-orcamento");
+        topologia.GetMessageTopology<GerarOrcamento>().EntityName.Should().Be("teste-quebrado-de-proposito");
         topologia.GetMessageTopology<PagamentoConfirmado>().EntityName.Should().Be("garageos-producao-pagamento-confirmado");
     }
 
