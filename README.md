@@ -1,5 +1,7 @@
 # garageos-execucao-service
 
+[![CI](https://github.com/TechChallengeFase1/garageos-execucao-service/actions/workflows/ci.yml/badge.svg)](https://github.com/TechChallengeFase1/garageos-execucao-service/actions/workflows/ci.yml) [![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=TechChallengeFase1_garageos-execucao-service&metric=alert_status)](https://sonarcloud.io/summary/overall?id=TechChallengeFase1_garageos-execucao-service) [![Cobertura](https://sonarcloud.io/api/project_badges/measure?project=TechChallengeFase1_garageos-execucao-service&metric=coverage)](https://sonarcloud.io/component_measures?id=TechChallengeFase1_garageos-execucao-service&metric=coverage) [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=TechChallengeFase1_garageos-execucao-service&metric=bugs)](https://sonarcloud.io/summary/overall?id=TechChallengeFase1_garageos-execucao-service) [![Vulnerabilidades](https://sonarcloud.io/api/project_badges/measure?project=TechChallengeFase1_garageos-execucao-service&metric=vulnerabilities)](https://sonarcloud.io/summary/overall?id=TechChallengeFase1_garageos-execucao-service)
+
 Microsserviço **Execução** do GarageOS — Tech Challenge Fase 4.
 
 Dono do estoque de peças, da reserva de peças por OS, da fila de execução da oficina (diagnóstico e reparo) e do relatório de aging.
@@ -7,9 +9,11 @@ Dono do estoque de peças, da reserva de peças por OS, da fila de execução da
 | | |
 |---|---|
 | Banco | Amazon RDS PostgreSQL 16 (instância própria) |
-| Mensageria | Amazon SQS/SNS com MassTransit 8.x (etapa 5) |
+| Mensageria | Amazon SQS/SNS com MassTransit 8.5 |
 | Papel na saga | Participante: reserva, libera e consome peças; executa a OS |
 | Namespace no EKS | `garageos-execucao` |
+
+A saga é **orquestrada** pelo OS Service: este serviço só reage aos comandos e responde com eventos. Por que orquestrada, e não coreografada: [README do OS Service](https://github.com/TechChallengeFase1/garageos-os-service#saga-pattern-por-que-orquestração).
 
 As decisões de arquitetura estão nos ADRs 0004 a 0007 em
 [`garageos-os-service/docs/adrs`](https://github.com/TechChallengeFase1/garageos-os-service/tree/main/docs/adrs).
@@ -61,6 +65,12 @@ O CI ([`ci.yml`](.github/workflows/ci.yml)) roda os dois a cada PR.
 **97,9% de linhas**, somando os testes unitários, de integração. A CI publica o relatório HTML no artifact `cobertura`, mostra o resumo na execução e falha abaixo de 80%.
 
 Ficam de fora só as migrations, geradas pelo EF, e o `Program.cs`, que só liga as peças e é exercitado pelos testes de integração. As regras estão em [`coverlet.runsettings`](Code/coverlet.runsettings).
+
+## Observabilidade
+
+No New Relic com nome próprio (`garageos-execucao`). O `X-Correlation-Id` de quem iniciou a operação chega
+em cada mensagem e volta aos logs (`CorrelationId`, `OrdemDeServicoId`, `MessageType`) e aos eventos de
+negócio. Detalhes e o dashboard da saga: [observabilidade](https://github.com/TechChallengeFase1/garageos-os-service/tree/main/docs/observabilidade).
 
 ## Infraestrutura (`infra/`)
 
